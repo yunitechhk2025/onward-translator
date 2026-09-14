@@ -34,51 +34,28 @@ def sh(cmd, timeout=1800):
     return subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout)
 
 
-def get_bilibili_direct(url):
-    """解析 B 站视频，拿到 MP4 直链与标题"""
-    m = re.search(r"(BV[0-9A-Za-z]{10})", url)
-    if not m:
-        raise ValueError("无法识别 B 站视频 ID")
-    bvid = m.group(1)
-    ck = JOBS / "cookies.txt"
-    if not ck.exists():
-        sh(["curl", "-s", "-c", str(ck), "-o", "/dev/null", "-A", "Mozilla/5.0", "https://www.bilibili.com/"])
-    api = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
-    info = json.loads(sh(["curl", "-s", "-m", "20", "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                          "-b", str(ck), api]).stdout)
-    if info.get("code") != 0:
-        raise ValueError("获取视频信息失败")
-    d = info["data"]
-    purl = (f"https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={d['cid']}"
-            f"&qn=64&fnval=1&platform=html5")
-    p = json.loads(sh(["curl", "-s", "-m", "20", "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                       "-b", str(ck), "-H", f"Referer: https://www.bilibili.com/video/{bvid}/", purl]).stdout)
-    if p.get("code") != 0 or not p["data"].get("durl"):
-        raise ValueError("获取播放地址失败")
-    return p["data"]["durl"][0]["url"], d["title"], d.get("duration", 0)
-
-
 def download_video(url, dest):
-    """支持 B 站直链下载；YouTube 走 yt-dlp"""
-    if "bilibili.com" in url or re.search(r"BV[0-9A-Za-z]{10}", url):
-        direct, title, _ = get_bilibili_direct(url)
-        ck = JOBS / "cookies.txt"
-        sh(["curl", "-s", "-L", "-m", "900", "-o", str(dest), "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "-H", "Referer: https://www.bilibili.com/", "-b", str(ck), direct], timeout=1000)
-        return title
-    # YouTube（--no-playlist：链接带 &list= 时只下载当前视频，避免整列表下载/碰到私有视频整单失败）
+    """YouTube / B站统一走 yt-dlp（自带反爬处理，比手写 B 站 API 稳）"""
+    is_bili = "bilibili.com" in url or bool(re.search(r"BV[0-9A-Za-z]{10}", url))
+    is_yt = "youtube.com" in url or "youtu.be" in url
     try:
         sh(["yt-dlp", "--no-warnings", "--no-playlist", "--socket-timeout", "20",
-            "--retries", "10", "-f", "bv*[height<=720]+ba/b[height<=720]",
+            "--retries", "10", "-f", "bv*[height<=720]+ba/b[height<=720]/b",
             "--merge-output-format", "mp4", "-o", str(dest), url], timeout=1800)
+        return "video"
     except subprocess.CalledProcessError as e:
         detail = ((e.stderr or "") + (e.stdout or "")).lower()
-        if any(k in detail for k in ("cookie", "sign in", "bot", "confirm you're", "http error 403", "429")):
+        if is_yt and any(k in detail for k in ("cookie", "sign in", "bot", "confirm you're", "http error 403", "429")):
             raise RuntimeError(
                 "雲服務器 IP 被 YouTube 風控，無法直接下載。請改用「上傳視頻檔」或貼 B站連結。"
             ) from e
-        raise
-    return "video"
+        if is_bili:
+            raise RuntimeError(
+                "B站視頻下載失敗（可能需登錄或地區限制）。請改用「上傳視頻檔」。"
+            ) from e
+        raise RuntimeError(
+            "視頻下載失敗。請改用「上傳視頻檔」，或換一條可公開訪問的連結。"
+        ) from e
 
 
 def load_wav(path):
