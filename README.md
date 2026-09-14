@@ -113,22 +113,13 @@ python app.py
 
 正式提供服務建議接入雲廠商機器翻譯（本倉庫已接**阿里雲**）。
 
-### 已接入阿里雲機器翻譯（主通道）
+### 已接入阿里雲機器翻譯（主通道，可選）
 
-1. 開通 [機器翻譯](https://www.aliyun.com/product/ai/alimt)
-2. 在 [AccessKey 管理](https://ram.console.aliyun.com/manage/ak) 創建 AccessKey
-3. 在項目根目錄 `config.json` 填入：
+推薦把密鑰放進 **GitHub Secrets**（見上文 `ALIYUN_ACCESS_KEY_ID` / `ALIYUN_ACCESS_KEY_SECRET`），部署時自動寫入服務器 `.env`。
 
-```json
-{
-  "aliyun_access_key_id": "你的AccessKeyId",
-  "aliyun_access_key_secret": "你的AccessKeySecret",
-  "admin_password": "管理后台密码"
-}
-```
-
-- **密鑰只在 `config.json`，不寫入源碼；不要提交到 Git**
-- 阿里雲不可用時自動降級到 Google，再失敗保留原文（粵語聲兜底）
+- **不配密鑰**：自動降級 Google，再失敗保留原文（粵語聲兜底）
+- **配了密鑰**：走阿里雲通用版（有每月免費字符額度）
+- 也可本地在 `.env` / `config.json` 填寫，優先級：環境變量 > config.json
 
 ## 已知限制
 
