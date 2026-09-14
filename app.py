@@ -67,9 +67,17 @@ def download_video(url, dest):
             "-H", "Referer: https://www.bilibili.com/", "-b", str(ck), direct], timeout=1000)
         return title
     # YouTube（--no-playlist：链接带 &list= 时只下载当前视频，避免整列表下载/碰到私有视频整单失败）
-    sh(["yt-dlp", "--no-warnings", "--no-playlist", "--socket-timeout", "20",
-        "--retries", "10", "-f", "bv*[height<=720]+ba/b[height<=720]",
-        "--merge-output-format", "mp4", "-o", str(dest), url], timeout=1800)
+    try:
+        sh(["yt-dlp", "--no-warnings", "--no-playlist", "--socket-timeout", "20",
+            "--retries", "10", "-f", "bv*[height<=720]+ba/b[height<=720]",
+            "--merge-output-format", "mp4", "-o", str(dest), url], timeout=1800)
+    except subprocess.CalledProcessError as e:
+        detail = ((e.stderr or "") + (e.stdout or "")).lower()
+        if any(k in detail for k in ("cookie", "sign in", "bot", "confirm you're", "http error 403", "429")):
+            raise RuntimeError(
+                "雲服務器 IP 被 YouTube 風控，無法直接下載。請改用「上傳視頻檔」或貼 B站連結。"
+            ) from e
+        raise
     return "video"
 
 
@@ -160,8 +168,12 @@ def run_pipeline(job_id: str, url: str, voice: str, target_lang: str, translatio
         status["done"] = True
         _usage_add(videos=1)  # 用量统计：完成一条视频
     except subprocess.CalledProcessError as e:
-        detail = (e.stderr or "")[-200:] if isinstance(e.stderr, str) else ""
-        status.update(stage="失败", error=f"視頻處理出錯，請換一個視頻再試（技術細節：{detail.strip()[:120]}）")
+        detail = (e.stderr or "")[-400:] if isinstance(e.stderr, str) else ""
+        low = detail.lower()
+        if any(k in low for k in ("cookie", "sign in", "bot", "confirm you're", "http error 403", "429")):
+            status.update(stage="失败", error="雲服務器 IP 被 YouTube 風控，無法直接下載。請改用「上傳視頻檔」或貼 B站連結。")
+        else:
+            status.update(stage="失败", error=f"視頻處理出錯，請換一個視頻再試（技術細節：{detail.strip()[:120]}）")
     except Exception as e:
         status.update(stage="失败", error=str(e)[:300])
     (job / "status.json").write_text(json.dumps(status, ensure_ascii=False))
