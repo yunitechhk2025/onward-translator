@@ -14,6 +14,8 @@ services:
       - ./models:/app/models
       # 任务产物持久化
       - ./jobs:/app/jobs
+      # 可选：浏览器导出的 cookies（bilibili.txt / youtube.txt），用于突破站点风控
+      - ./cookies:/app/cookies
     environment:
       WHISPER_MODEL: /app/models/whisper-small
       PORT: "8000"

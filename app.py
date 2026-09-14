@@ -34,6 +34,18 @@ def sh(cmd, timeout=1800):
     return subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout)
 
 
+COOKIES_DIR = BASE / "cookies"
+
+
+def _cookies_args(is_bili, is_yt):
+    """站点风控需要登录态时，可在 cookies/ 放置浏览器导出的 Netscape cookies 文件"""
+    name = "bilibili.txt" if is_bili else "youtube.txt" if is_yt else None
+    if not name:
+        return []
+    p = COOKIES_DIR / name
+    return ["--cookies", str(p)] if p.exists() else []
+
+
 def download_video(url, dest):
     """YouTube / B站统一走 yt-dlp（自带反爬处理，比手写 B 站 API 稳）"""
     is_bili = "bilibili.com" in url or bool(re.search(r"BV[0-9A-Za-z]{10}", url))
@@ -41,7 +53,9 @@ def download_video(url, dest):
     try:
         sh(["yt-dlp", "--no-warnings", "--no-playlist", "--socket-timeout", "20",
             "--retries", "10", "-f", "bv*[height<=720]+ba/b[height<=720]/b",
-            "--merge-output-format", "mp4", "-o", str(dest), url], timeout=1800)
+            "--merge-output-format", "mp4",
+            *_cookies_args(is_bili, is_yt),
+            "-o", str(dest), url], timeout=1800)
         return "video"
     except subprocess.CalledProcessError as e:
         raw = ((e.stderr or "") + (e.stdout or "")).strip()
@@ -52,6 +66,10 @@ def download_video(url, dest):
                 "雲服務器 IP 被 YouTube 風控，無法直接下載。請改用「上傳視頻檔」或貼 B站連結。"
             ) from e
         if is_bili:
+            if "412" in detail:
+                raise RuntimeError(
+                    "B站觸發安全風控（412），伺服器無法直接下載。請改用「上傳視頻檔」。"
+                ) from e
             raise RuntimeError(
                 f"B站視頻下載失敗（可能需登錄或地區限制）。請改用「上傳視頻檔」。（{tail}）"
             ) from e

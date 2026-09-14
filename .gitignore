@@ -4,6 +4,7 @@ config.json
 usage.json
 jobs/
 models/
+cookies/
 
 # python
 .venv/

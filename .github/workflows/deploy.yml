@@ -43,6 +43,6 @@ jobs:
             EOF
             # 去掉 heredoc 可能带入的前导空格
             sed -i 's/^[[:space:]]*//' .env
-            mkdir -p models jobs
+            mkdir -p models jobs cookies
             docker compose up -d --build
             docker compose ps
