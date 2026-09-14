@@ -44,17 +44,19 @@ def download_video(url, dest):
             "--merge-output-format", "mp4", "-o", str(dest), url], timeout=1800)
         return "video"
     except subprocess.CalledProcessError as e:
-        detail = ((e.stderr or "") + (e.stdout or "")).lower()
+        raw = ((e.stderr or "") + (e.stdout or "")).strip()
+        detail = raw.lower()
+        tail = raw.replace("\n", " ")[-160:]
         if is_yt and any(k in detail for k in ("cookie", "sign in", "bot", "confirm you're", "http error 403", "429")):
             raise RuntimeError(
                 "雲服務器 IP 被 YouTube 風控，無法直接下載。請改用「上傳視頻檔」或貼 B站連結。"
             ) from e
         if is_bili:
             raise RuntimeError(
-                "B站視頻下載失敗（可能需登錄或地區限制）。請改用「上傳視頻檔」。"
+                f"B站視頻下載失敗（可能需登錄或地區限制）。請改用「上傳視頻檔」。（{tail}）"
             ) from e
         raise RuntimeError(
-            "視頻下載失敗。請改用「上傳視頻檔」，或換一條可公開訪問的連結。"
+            f"視頻下載失敗。請改用「上傳視頻檔」，或換一條可公開訪問的連結。（{tail}）"
         ) from e
 
 
