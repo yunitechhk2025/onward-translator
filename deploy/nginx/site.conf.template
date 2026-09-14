@@ -1,0 +1,29 @@
+# Nginx 站点模板：由 .github/workflows/setup-nginx.yml 渲染后写入
+# /etc/nginx/sites-available/<域名>。
+#
+# 占位符 __DOMAIN__、__UPSTREAM_PORT__ 会在部署时被替换。
+# HTTPS（443、证书、HTTP→HTTPS 跳转）由 certbot --nginx --redirect 自动追加。
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __DOMAIN__;
+
+    # 视频上传可能较大
+    client_max_body_size 1024m;
+
+    location / {
+        proxy_pass http://127.0.0.1:__UPSTREAM_PORT__;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 处理流水线可能较久，避免 Nginx 提前断开
+        proxy_read_timeout  3600s;
+        proxy_send_timeout  3600s;
+        proxy_connect_timeout 60s;
+    }
+}

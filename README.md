@@ -76,6 +76,24 @@ docker compose up -d --build
 
 > `config.json` / `.env` / `jobs/` / `models/` 已进 `.gitignore`，`git pull` 不会把密钥提交进仓库。
 
+### D. 二级域名 + HTTPS（与富润康同机 Nginx）
+
+| 访问方式 | 例子 | 区别 |
+|---|---|---|
+| IP + 端口 | `http://47.86.98.52:8010` | 最快上线；要记端口；无 HTTPS；不宜给客人 |
+| 二级域名 + HTTPS | `https://translate.xxx.com` | 好记、有锁、可分享；同机多站靠域名分流 |
+
+步骤：
+
+1. DNS 添一条 **A 记录**：主机如 `translate` → 值 `47.86.98.52`
+2. 安全组已放行 **80 / 443**（富润康配域名时一般已开）
+3. 等 DNS 生效后，GitHub → Actions → **Setup Nginx site + HTTPS** → Run workflow  
+   - `domain`：你的二级域名  
+   - `upstream_port`：`8010`  
+   - 勾选申请 HTTPS  
+
+不会改动已有的 `ai.fuyunhon.com` 等站点；Nginx 按 `Host` 分别反代到 8000 / 8010。
+
 ## 本地部署（Windows，推薦給中介自用）
 
 1. 安裝 [Python 3.10+](https://www.python.org/downloads/)（勾選 Add to PATH）與 [FFmpeg](https://ffmpeg.org/download.html)（解壓後把 bin 加入 PATH）

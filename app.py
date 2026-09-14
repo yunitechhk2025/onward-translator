@@ -560,6 +560,12 @@ def burn_subtitles(job, segs, translated):
 
 
 # ===================== 路由 =====================
+@app.get("/health")
+def health():
+    """供 Nginx / 部署健康检查使用"""
+    return {"status": "ok", "service": "onward-translator"}
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     return (BASE / "templates" / "index.html").read_text(encoding="utf-8")
