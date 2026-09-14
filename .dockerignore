@@ -1,0 +1,13 @@
+.venv
+venv
+__pycache__
+*.pyc
+.git
+.github
+jobs
+models
+config.json
+usage.json
+*.md
+.cursor
+agent-transcripts

@@ -1,0 +1,15 @@
+{
+  "name": "Onward · 做菜視頻翻譯",
+  "short_name": "Onward",
+  "description": "貼上做菜視頻連結，自動生成印尼語配音與字幕",
+  "lang": "zh-HK",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f1420",
+  "theme_color": "#0f1420",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

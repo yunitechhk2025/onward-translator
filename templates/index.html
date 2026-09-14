@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onward · 做菜視頻翻譯</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Onward">
+<meta name="theme-color" content="#0f1420">
+<style>
+  :root{
+    --bg:#0f1420; --card:#182031; --line:#26314a; --pri:#2563eb; --pri2:#3b82f6;
+    --txt:#e8edf7; --dim:#8b97ad; --ok:#10b981; --warn:#f59e0b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);
+       min-height:100vh;display:flex;justify-content:center;padding:24px 16px}
+  .wrap{width:100%;max-width:760px}
+  header{text-align:center;padding:28px 0 22px}
+  h1{font-size:26px;font-weight:700;letter-spacing:.5px}
+  h1 .accent{background:linear-gradient(90deg,#3b82f6,#10b981);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--dim);font-size:14px;margin-top:10px;line-height:1.6}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:16px}
+  label{display:block;font-size:13px;color:var(--dim);margin-bottom:8px;font-weight:600}
+  input[type=text]{width:100%;padding:13px 14px;background:#0d1320;border:1px solid var(--line);
+       border-radius:9px;color:var(--txt);font-size:15px;outline:none;transition:.2s}
+  input[type=text]:focus{border-color:var(--pri2);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+  .row{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:150px}
+  select{width:100%;padding:12px 14px;background:#0d1320;border:1px solid var(--line);border-radius:9px;
+       color:var(--txt);font-size:14px;outline:none;cursor:pointer}
+  button{width:100%;margin-top:20px;padding:15px;background:linear-gradient(135deg,var(--pri),var(--pri2));
+       border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:.2s}
+  button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(37,99,235,.4)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .hint{font-size:12.5px;color:var(--dim);margin-top:12px;line-height:1.7}
+  .hint code{background:#0d1320;padding:2px 6px;border-radius:4px;color:#7dd3fc}
+  #status{display:none;margin-top:18px}
+  .bar{height:8px;background:#0d1320;border-radius:99px;overflow:hidden;margin:12px 0}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pri),var(--ok));
+       border-radius:99px;transition:width .6s ease}
+  .stage{display:flex;justify-content:space-between;font-size:13.5px;color:var(--dim)}
+  .stage b{color:var(--txt)}
+  .result{display:none;margin-top:18px;padding:18px;background:rgba(16,185,129,.08);
+       border:1px solid rgba(16,185,129,.3);border-radius:10px}
+  .result h3{font-size:15px;color:var(--ok);margin-bottom:12px}
+  .dl{display:flex;gap:10px;flex-wrap:wrap}
+  .dl a{flex:1;min-width:140px;text-align:center;padding:12px;border-radius:9px;text-decoration:none;
+       font-size:14px;font-weight:600;transition:.2s}
+  .dl .v{background:var(--pri);color:#fff}
+  .dl .s{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  .dl a:hover{opacity:.88}
+  video{width:100%;max-height:420px;border-radius:10px;margin-top:14px;background:#000}
+  .copybtn{margin-top:12px;padding:12px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.4);
+       border-radius:9px;color:#6ee7b7;font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+  .copybtn:hover{background:rgba(16,185,129,.22)}
+  .copybtn.ok{background:rgba(16,185,129,.85);border-color:transparent;color:#fff}
+  .sharebtn{margin-top:4px;padding:15px;background:linear-gradient(135deg,#059669,#10b981);border:none;
+       border-radius:10px;color:#fff;font-size:15.5px;font-weight:700;cursor:pointer;transition:.2s}
+  .sharebtn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(16,185,129,.4)}
+  .sharebtn:disabled{opacity:.6;cursor:wait}
+  @media (max-width:768px){ #qrbox{display:none !important} }
+  .or{display:flex;align-items:center;color:var(--dim);font-size:12.5px;margin:14px 0 10px}
+  .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+  .or span{padding:0 12px}
+  button.upload{background:transparent;border:1.5px dashed var(--line);color:var(--txt);
+       font-size:14px;font-weight:600;padding:14px}
+  button.upload:hover{border-color:var(--pri2);color:#93c5fd}
+  .upinfo{display:none;margin-top:12px;font-size:12.5px;color:var(--dim)}
+  .err{display:none;margin-top:16px;padding:16px;background:rgba(239,68,68,.1);
+       border:1px solid rgba(239,68,68,.35);border-radius:10px;color:#fca5a5;font-size:14px;line-height:1.8}
+  .notice{display:none;margin-top:16px;padding:14px;background:rgba(245,158,11,.08);
+       border:1px solid rgba(245,158,11,.35);border-radius:10px;color:#fcd34d;font-size:13.5px;line-height:1.7}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:20px}
+  .step{text-align:center;font-size:11.5px;color:var(--dim);padding:10px 4px;border-radius:8px;background:#0d1320}
+  .step.on{background:rgba(37,99,235,.18);color:#93c5fd}
+  footer{text-align:center;color:var(--dim);font-size:12px;padding:24px 0 8px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="accent">Onward</span> · 做菜視頻翻譯</h1>
+    <p class="sub">貼上 YouTube / B站 做菜視頻連結<br>自動生成 <b>印尼語配音</b> + <b>印尼語字幕</b>，可傳給家中傭工</p>
+  </header>
+
+  <div class="card">
+    <label>視頻連結</label>
+    <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=... 或 https://www.bilibili.com/video/BV...">
+    <div class="row">
+      <div>
+        <label>配音語言</label>
+        <select id="lang">
+          <option value="id">印尼語 Bahasa Indonesia</option>
+          <option value="tl">菲律賓語 Tagalog（開發中）</option>
+          <option value="th">泰語（開發中）</option>
+        </select>
+      </div>
+      <div>
+        <label>配音聲音</label>
+        <select id="voice">
+          <option value="id-ID-GadisNeural">女聲 · Gadis（推薦）</option>
+          <option value="id-ID-ArdiNeural">男聲 · Ardi</option>
+        </select>
+      </div>
+    </div>
+    <div class="or"><span>或者</span></div>
+    <button id="pick" class="upload" type="button">📁 上傳手機裡的視頻（相冊 / 微信收到的）</button>
+    <input type="file" id="file" accept="video/*,.mp4,.mov,.mkv,.webm" style="display:none">
+    <button id="go">開始處理</button>
+    <p class="hint">
+      兩種方式任選其一：貼連結 或 直接上傳。<br>
+      處理時間約為視頻長度的 0.3–0.6 倍（例如 2 分鐘影片約需 1 分鐘），建議視頻 ≤ 15 分鐘。<br>
+      支援平台：<code>YouTube</code> <code>B站嗶哩嗶哩</code> 及 <code>MP4 / MOV</code> 等常見視頻檔案。成品可直接傳 WhatsApp 或微信。
+    </p>
+  </div>
+
+  <div class="card" id="status">
+    <div class="stage"><span id="stagetxt">準備中…</span><b id="pct">0%</b></div>
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="steps">
+      <div class="step" data-p="10">下載視頻</div>
+      <div class="step" data-p="35">識別語音</div>
+      <div class="step" data-p="60">翻譯印尼語</div>
+      <div class="step" data-p="90">配音＋字幕</div>
+    </div>
+  </div>
+
+  <div class="result" id="result">
+    <h3>✓ 處理完成</h3>
+    <button id="sharebtn" type="button" class="sharebtn">📲 分享視頻到 WhatsApp / 微信</button>
+    <div class="dl" style="margin-top:10px">
+      <a class="v" id="dlv" href="#">⬇ 下載視頻 (MP4)</a>
+      <a class="s" id="dls" href="#">⬇ 下載字幕 (SRT)</a>
+    </div>
+    <button id="copylink" type="button" class="copybtn">🔗 複製在線觀看鏈接</button>
+    <video id="preview" controls playsinline></video>
+  </div>
+
+  <div class="notice" id="notice"></div>
+  <div class="err" id="err"></div>
+
+  <div class="card" id="qrbox" style="display:none;text-align:center">
+    <label style="margin-bottom:12px">📱 手機掃碼，隨時打開本平台</label>
+    <img id="qrimg" alt="QR" style="width:180px;height:180px;border-radius:10px;background:#fff;padding:8px">
+    <p class="hint" style="margin-top:10px">
+      微信 / 相機掃一掃即可打開<br>
+      <b>保存方法</b>：iPhone 用 Safari 打開後「分享 → 加到主畫面」；Android 用 Chrome「加入主畫面」；微信內點「⋯ → 浮窗」可隨時調出
+    </p>
+  </div>
+
+  <div class="card" id="installhint" style="display:none">
+    <label>📌 把本平台保存到手機（一次即可，以後點圖標直接用）</label>
+    <p class="hint" id="installsteps" style="margin-top:0"></p>
+  </div>
+
+  <footer>
+    香港僱傭中介免費服務 · 讓家中的姐姐用她熟悉的語言學做菜<br>
+    你需要的只是貼上連結，其餘交給我們
+  </footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let jobId = null, timer = null;
+
+// 底部二维码：仅当通过公网地址访问时显示（localhost 扫了别人也打不开）
+if (!/^(localhost|127\.0\.0\.1)/.test(location.host)) {
+  $("#qrimg").src = "/api/qr";
+  $("#qrbox").style.display = "block";
+}
+
+// 手机端：显示"加入主画面"指引
+if (!/^(localhost|127\.0\.0\.1)/.test(location.host) && window.matchMedia("(max-width: 768px)").matches) {
+  const ua = navigator.userAgent;
+  let steps;
+  if (/iPhone|iPad/.test(ua)) {
+    steps = /MicroMessenger/i.test(ua)
+      ? "你在微信內打開：點右上角 ⋯ → 選「在瀏覽器開啟」（Safari）→ 底部分享鍵 ⊕ → 「加到主畫面」"
+      : "點底部分享鍵 ⊕ → 往下滑選「加到主畫面」→ 確認。桌面就會出現「Onward」圖標";
+  } else {
+    steps = /MicroMessenger/i.test(ua)
+      ? "你在微信內打開：點右上角 ⋯ → 「在瀏覽器開啟」→ 瀏覽器選單 → 「加入主畫面」"
+      : "點右上角 ⋮ 選單 → 「加入主畫面 / 新增到主螢幕」→ 確認。桌面就會出現「Onward」圖標";
+  }
+  $("#installsteps").textContent = steps;
+  $("#installhint").style.display = "block";
+}
+
+$("#go").onclick = async () => {
+  const url = $("#url").value.trim();
+  if (!url) { alert("請先貼上視頻連結"); return; }
+  $("#err").style.display = "none";
+  $("#result").style.display = "none";
+  $("#status").style.display = "block";
+  $("#go").disabled = true;
+  setProgress("正在提交任務…", 3);
+
+  try {
+    const r = await fetch("/api/process", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({url, voice: $("#voice").value, lang: $("#lang").value})
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "提交失敗");
+    jobId = d.job_id;
+    timer = setInterval(poll, 2500);
+    poll();
+  } catch (e) {
+    fail(e.message);
+  }
+};
+
+async function poll() {
+  if (!jobId) return;
+  try {
+    const r = await fetch(`/api/status/${jobId}`);
+    const d = await r.json();
+    if (d.error) { fail(d.error); return; }
+    setProgress(d.stage || "處理中…", d.progress || 0);
+    if (d.machine_translated === false) {
+      $("#notice").style.display = "block";
+      $("#notice").innerHTML = "⚠ 自動翻譯通道暫時不可用，本次配音將使用原語言。<br>如需印尼語，請聯絡管理員使用「人工譯文」通道重新合成。";
+    }
+    if (d.done) {
+      clearInterval(timer);
+      $("#status").style.display = "none";
+      $("#result").style.display = "block";
+      $("#dlv").href = `/api/download/${jobId}/video`;
+      $("#dls").href = `/api/download/${jobId}/srt`;
+      $("#preview").src = `/api/download/${jobId}/video`;
+      $("#copylink").dataset.url = location.origin + `/api/download/${jobId}/video`;
+      $("#copylink").textContent = "🔗 複製在線觀看鏈接";
+      $("#copylink").classList.remove("ok");
+      $("#go").disabled = false;
+      $("#go").textContent = "再處理一個視頻";
+    }
+  } catch (e) { /* 忽略单次轮询失败 */ }
+}
+
+// 手機優先：調用系統原生分享，直接把視頻文件發進 WhatsApp/微信
+$("#sharebtn").onclick = async () => {
+  const btn = $("#sharebtn");
+  if (!jobId) return;
+  btn.disabled = true;
+  btn.textContent = "⏳ 正在準備視頻（約幾秒到一分鐘）…";
+  const reset = () => { btn.disabled = false; btn.textContent = "📲 分享視頻到 WhatsApp / 微信"; };
+  try {
+    const url = `/api/download/${jobId}/video`;
+    const blob = await (await fetch(url)).blob();
+    const file = new File([blob], "印尼語配音視頻.mp4", { type: "video/mp4" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "印尼語配音視頻" });
+      btn.textContent = "✓ 已發送";
+    } else if (navigator.share) {
+      // 老設備不支持分享文件，退而分享鏈接
+      await navigator.share({ url: location.origin + url, title: "印尼語配音視頻（在線觀看）" });
+      btn.textContent = "✓ 已分享鏈接";
+    } else {
+      // 不支持原生分享：降级为复制链接
+      try { await navigator.clipboard.writeText(location.origin + url); btn.textContent = "✓ 鏈接已複製，去聊天軟件貼上"; }
+      catch (e) { btn.textContent = "⚠ 此瀏覽器不支持分享，請用下方複製鏈接按鈕"; }
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") { /* 用户取消分享，静默 */ }
+    else { btn.textContent = "⚠ 分享失敗，請用下方下載或複製鏈接"; }
+  }
+  setTimeout(reset, 3000);
+};
+
+$("#copylink").onclick = async () => {
+  const url = $("#copylink").dataset.url;
+  if (!url) return;
+  let ok = false;
+  try { await navigator.clipboard.writeText(url); ok = true; }
+  catch (e) {
+    // 降级：非 HTTPS 环境用临时输入框复制
+    const ta = document.createElement("textarea");
+    ta.value = url; document.body.appendChild(ta);
+    ta.select(); ok = document.execCommand("copy"); ta.remove();
+  }
+  const btn = $("#copylink");
+  btn.classList.toggle("ok", ok);
+  btn.textContent = ok ? "✓ 已複製，去 WhatsApp 貼上即可" : "⚠ 複製失敗，請長按鏈接手動複製";
+  setTimeout(() => {
+    btn.classList.remove("ok");
+    btn.textContent = "🔗 複製視頻鏈接（貼到 WhatsApp 發送）";
+  }, 2500);
+};
+
+function setProgress(stage, pct) {
+  $("#stagetxt").textContent = stage;
+  $("#pct").textContent = Math.round(pct) + "%";
+  $("#barfill").style.width = pct + "%";
+  document.querySelectorAll(".step").forEach(el => {
+    el.classList.toggle("on", pct >= +el.dataset.p);
+  });
+}
+
+$("#pick").onclick = () => $("#file").click();
+$("#file").onchange = () => {
+  const f = $("#file").files[0];
+  if (!f) return;
+  $("#err").style.display = "none";
+  $("#result").style.display = "none";
+  $("#status").style.display = "block";
+  $("#go").disabled = true;
+  setProgress("正在上傳視頻… 0%", 2);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/upload");
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable) {
+      const p = Math.round(e.loaded / e.total * 100);
+      setProgress(`正在上傳視頻… ${p}%`, Math.min(2 + p * 0.2, 22));
+    }
+  };
+  xhr.onload = () => {
+    try {
+      const d = JSON.parse(xhr.responseText);
+      if (xhr.status !== 200) throw new Error(d.detail || "上傳失敗");
+      jobId = d.job_id;
+      timer = setInterval(poll, 2500);
+      setProgress("上傳完成，開始處理…", 25);
+    } catch (e) { fail(e.message); }
+  };
+  xhr.onerror = () => fail("網絡中斷，上傳失敗");
+  const fd = new FormData();
+  fd.append("file", f);
+  fd.append("voice", $("#voice").value);
+  fd.append("lang", $("#lang").value);
+  xhr.send(fd);
+};
+
+function fail(msg) {
+  clearInterval(timer);
+  $("#status").style.display = "none";
+  $("#err").style.display = "block";
+  // 只显示面向使用者的说明，技术细节折叠
+  const clean = String(msg).split("（技術細節")[0];
+  $("#err").innerHTML = "⚠ " + clean +
+    "<br><br><span style='color:#8b97ad;font-size:13px'>建議：換一個有講解的做菜視頻再試，或改用「貼連結」方式。</span>";
+  $("#go").disabled = false;
+  $("#go").textContent = "重試";
+}
+</script>
+</body>
+</html>

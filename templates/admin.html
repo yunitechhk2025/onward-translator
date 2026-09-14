@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onward · 管理後台</title>
+<style>
+  :root{
+    --bg:#0f1420; --card:#182031; --line:#26314a; --txt:#e8edf7; --dim:#8b97ad;
+    --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --pri:#3b82f6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);
+       min-height:100vh;display:flex;justify-content:center;padding:24px 16px}
+  .wrap{width:100%;max-width:720px}
+  header{text-align:center;padding:20px 0 16px}
+  h1{font-size:22px}
+  h1 .accent{color:var(--pri)}
+  .sub{color:var(--dim);font-size:13px;margin-top:6px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:14px}
+  input[type=password],input[type=text]{width:100%;padding:12px 14px;background:#0d1320;border:1px solid var(--line);
+       border-radius:9px;color:var(--txt);font-size:15px;outline:none}
+  button{margin-top:12px;width:100%;padding:12px;background:linear-gradient(135deg,#2563eb,#3b82f6);
+       border:none;border-radius:9px;color:#fff;font-size:15px;font-weight:700;cursor:pointer}
+  button:hover{opacity:.9}
+  .metric{margin-bottom:18px}
+  .metric .top{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+  .metric .top b{font-weight:600}
+  .metric .top .num{color:var(--dim);font-size:13px}
+  .bar{height:10px;background:#0d1320;border-radius:99px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:99px;transition:width .5s}
+  .bar i.safe{background:linear-gradient(90deg,#2563eb,#10b981)}
+  .bar i.warn{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+  .bar i.over{background:var(--bad)}
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:700;margin-left:8px}
+  .pill.warn{background:rgba(245,158,11,.15);color:#fbbf24}
+  .pill.over{background:rgba(239,68,68,.15);color:#fca5a5}
+  .alert{padding:12px 14px;border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.07);
+       border-radius:9px;font-size:13px;line-height:1.7;margin-bottom:8px}
+  .alert small{color:var(--dim);display:block;margin-top:4px}
+  .empty{color:var(--dim);font-size:13px;text-align:center;padding:8px 0}
+  .hint{font-size:12.5px;color:var(--dim);line-height:1.8;margin-top:8px}
+  .hint code{background:#0d1320;padding:2px 6px;border-radius:4px;color:#7dd3fc;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+  td,th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--dim);font-weight:600;font-size:12px}
+  #loginbox{max-width:380px;margin:40px auto}
+  .badge{font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="accent">Onward</span> · 管理後台</h1>
+    <p class="sub">用量監測與提醒 · 僅限中介內部使用</p>
+  </header>
+
+  <div class="card" id="loginbox">
+    <label style="font-size:13px;color:var(--dim);display:block;margin-bottom:8px">請輸入管理密鑰</label>
+    <input type="password" id="key" placeholder="管理密鑰（config.json 的 admin_password）">
+    <button onclick="load()">進入後台</button>
+    <p class="hint">密鑰只保存在這台手機/電腦的瀏覽器裡，不會發給僱主端。</p>
+  </div>
+
+  <div id="dash" style="display:none">
+    <div class="card">
+      <label style="font-size:13px;color:var(--dim);display:block;margin-bottom:14px">
+        本月用量 <span class="badge" id="month"></span>
+        <span id="emailbadge" class="badge" style="float:right"></span>
+      </label>
+      <div id="metrics"></div>
+    </div>
+
+    <div class="card">
+      <label style="font-size:13px;color:var(--dim);display:block;margin-bottom:10px">⚠ 提醒記錄（達 80% 與 100% 各觸發一次）</label>
+      <div id="alerts"></div>
+    </div>
+
+    <div class="card">
+      <label style="font-size:13px;color:var(--dim);display:block">配額說明與調整</label>
+      <table id="limtable"></table>
+      <p class="hint">
+        配額在服務器的 <code>config.json</code> → <code>usage_limits</code> 裡調整：<br>
+        <code>monthly_videos</code> 每月視頻條數 · <code>monthly_chars</code> 每月翻譯字符數（騰訊雲免費額度 500 萬/月）· <code>disk_gb</code> 存儲上限（GB）<br>
+        郵件提醒：<code>alert.emails</code> 填中介與管理員郵箱、<code>alert.smtp_*</code> 填發信郵箱（QQ 郵箱用授權碼）。填好重啟服務即生效。
+      </p>
+    </div>
+
+    <button onclick="load()" style="background:transparent;border:1px solid var(--line);color:var(--dim);font-weight:400">↻ 刷新數據</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const KEY = () => sessionStorage.getItem("onward_admin_key") || "";
+
+async function load() {
+  let key = $("#key").value.trim() || KEY();
+  if (!key) { alert("請輸入管理密鑰"); return; }
+  sessionStorage.setItem("onward_admin_key", key);
+  let d;
+  try {
+    const r = await fetch("/api/usage?key=" + encodeURIComponent(key));
+    if (r.status === 401) { sessionStorage.removeItem("onward_admin_key"); alert("管理密鑰不正確"); return; }
+    d = await r.json();
+  } catch (e) { alert("網絡錯誤，請重試"); return; }
+
+  $("#loginbox").style.display = "none";
+  $("#dash").style.display = "block";
+  $("#month").textContent = "（" + d.month + "）";
+
+  // 指標條
+  $("#metrics").innerHTML = d.metrics.map(m => {
+    const cls = m.over ? "over" : (m.warn ? "warn" : "safe");
+    const pct = Math.min(m.pct, 100);
+    const pill = m.over ? '<span class="pill over">已達上限</span>'
+              : m.warn ? '<span class="pill warn">接近上限</span>' : "";
+    return `<div class="metric">
+      <div class="top"><b>${m.name}${pill}</b>
+        <span class="num">${fmt(m.used)} / ${fmt(m.limit)} ${m.unit} · ${m.pct}%</span></div>
+      <div class="bar"><i class="${cls}" style="width:${pct}%"></i></div>
+    </div>`;
+  }).join("");
+
+  // 提醒記錄
+  $("#alerts").innerHTML = d.alerts.length
+    ? d.alerts.slice().reverse().map(a =>
+        `<div class="alert">${a.msg}<small>${a.time} · 郵件：${a.email || "—"}</small></div>`).join("")
+    : '<div class="empty">本月暫無提醒，一切正常 ✓</div>';
+
+  // 配額表
+  $("#limtable").innerHTML = "<tr><th>項目</th><th>本月已用</th><th>月度配額</th><th>提醒線</th></tr>" +
+    d.metrics.map(m => `<tr><td>${m.name}</td><td>${fmt(m.used)} ${m.unit}</td>
+      <td>${fmt(m.limit)} ${m.unit}</td><td>${d.threshold}%</td></tr>`).join("");
+
+  $("#emailbadge").textContent = d.alerts.some(a => a.email && a.email.includes("已發送"))
+    ? "📧 郵件提醒：已啟用" : "📧 郵件提醒：未配置（提醒僅記錄在此）";
+}
+
+function fmt(n) {
+  n = +n;
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+  if (n >= 1000) return n.toLocaleString("en-US");
+  return n;
+}
+
+// 已保存密钥则自动加载
+if (KEY()) load();
+</script>
+</body>
+</html>

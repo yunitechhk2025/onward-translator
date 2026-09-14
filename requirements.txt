@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+edge-tts
+faster-whisper
+deep-translator
+yt-dlp
+huggingface_hub
+numpy
+python-multipart
+qrcode
+pillow
+requests
