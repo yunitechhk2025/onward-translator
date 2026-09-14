@@ -58,19 +58,23 @@ docker compose up -d --build
 
 > 与同机富润康客服（8000）错开，本服务默认映射 **8010**。
 
-### C. GitHub Secrets（自动部署）
+### C. GitHub Secrets（自动部署 + 可选翻译密钥）
 
 仓库 → Settings → Secrets and variables → Actions，新增：
 
-| Secret | 含义 |
-|---|---|
-| `ECS_HOST` | 服务器公网 IP |
-| `ECS_USER` | SSH 用户名（常为 `root`） |
-| `ECS_PASSWORD` | SSH 密码 |
+| Secret | 含义 | 必填 |
+|---|---|---|
+| `ECS_HOST` | 服务器公网 IP | 是 |
+| `ECS_USER` | SSH 用户名（常为 `root`） | 是 |
+| `ECS_PASSWORD` | SSH 密码 | 是 |
+| `ALIYUN_ACCESS_KEY_ID` | 阿里云翻译 AccessKeyId | 否 |
+| `ALIYUN_ACCESS_KEY_SECRET` | 阿里云翻译 AccessKeySecret | 否 |
+
+部署时 Actions 会把阿里云密钥写入服务器 `~/onward-translator/.env`（不进 Git）。**未配置这两项时，翻译自动降级 Google**。
 
 之后每次 `git push origin main`，Actions 工作流 `Deploy to Aliyun ECS` 会自动更新线上容器。也可在 Actions 页手动 Run workflow。
 
-> `config.json` / `jobs/` / `models/` 已进 `.gitignore`，`git pull` 不会覆盖服务器上的密钥与模型缓存。
+> `config.json` / `.env` / `jobs/` / `models/` 已进 `.gitignore`，`git pull` 不会把密钥提交进仓库。
 
 ## 本地部署（Windows，推薦給中介自用）
 

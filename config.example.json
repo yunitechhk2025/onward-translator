@@ -1,8 +1,4 @@
 {
-  "aliyun_access_key_id": "在这里填 AccessKeyId",
-  "aliyun_access_key_secret": "在这里填 AccessKeySecret",
-  "aliyun_mt_endpoint": "mt.aliyuncs.com",
-  "aliyun_source_lang": "auto",
   "admin_password": "改成一个只有中介知道的管理密钥",
   "usage_limits": {
     "monthly_videos": 100,

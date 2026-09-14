@@ -12,6 +12,9 @@ jobs:
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          ALIYUN_ACCESS_KEY_ID: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          ALIYUN_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
         with:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
@@ -19,6 +22,7 @@ jobs:
           port: 22
           script_stop: true
           command_timeout: 30m
+          envs: ALIYUN_ACCESS_KEY_ID,ALIYUN_ACCESS_KEY_SECRET
           script: |
             set -e
             if [ ! -d ~/onward-translator/.git ]; then
@@ -29,8 +33,16 @@ jobs:
             git reset --hard origin/main
             if [ ! -f config.json ]; then
               cp config.example.json config.json
-              echo "WARN: config.json 使用示例模板，请尽快填入阿里云 AccessKey 与 admin_password"
+              echo "WARN: config.json 使用示例模板（管理后台等）；翻译密钥请用 GitHub Secrets"
             fi
+            # 由 GitHub Secrets 注入；未配置则为空 → 应用自动降级 Google
+            umask 077
+            cat > .env <<EOF
+            ALIYUN_ACCESS_KEY_ID=${ALIYUN_ACCESS_KEY_ID}
+            ALIYUN_ACCESS_KEY_SECRET=${ALIYUN_ACCESS_KEY_SECRET}
+            EOF
+            # 去掉 heredoc 可能带入的前导空格
+            sed -i 's/^[[:space:]]*//' .env
             mkdir -p models jobs
             docker compose up -d --build
             docker compose ps

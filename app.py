@@ -216,6 +216,24 @@ def _load_config():
     return {}
 
 
+def _aliyun_credentials(cfg=None):
+    """优先读环境变量（由 GitHub Secrets 在部署时写入 .env），其次 config.json。"""
+    cfg = cfg if cfg is not None else _load_config()
+    ak = (os.environ.get("ALIYUN_ACCESS_KEY_ID") or cfg.get("aliyun_access_key_id") or "").strip()
+    sk = (os.environ.get("ALIYUN_ACCESS_KEY_SECRET") or cfg.get("aliyun_access_key_secret") or "").strip()
+    endpoint = (
+        os.environ.get("ALIYUN_MT_ENDPOINT")
+        or cfg.get("aliyun_mt_endpoint")
+        or "mt.aliyuncs.com"
+    ).strip()
+    source_lang = (
+        os.environ.get("ALIYUN_SOURCE_LANG")
+        or cfg.get("aliyun_source_lang")
+        or "auto"
+    ).strip()
+    return ak, sk, endpoint, source_lang
+
+
 # ===================== 用量监测与提醒（中介后台专用） =====================
 USAGE_FILE = BASE / "usage.json"
 
@@ -332,12 +350,9 @@ def _aliyun_translate_one(text, target_lang, cfg):
     from urllib.parse import quote_plus
     import requests
 
-    ak = cfg.get("aliyun_access_key_id")
-    sk = cfg.get("aliyun_access_key_secret")
+    ak, sk, endpoint, source_lang = _aliyun_credentials(cfg)
     if not ak or not sk:
         raise IOError("未配置阿里云 AccessKey")
-
-    endpoint = cfg.get("aliyun_mt_endpoint", "mt.aliyuncs.com")
 
     def percent_encode(s):
         # 阿里云 POP 签名要求：空格为 %20，且 ~ 不编码
@@ -353,7 +368,7 @@ def _aliyun_translate_one(text, target_lang, cfg):
         "SignatureNonce": str(uuid.uuid4()),
         "Action": "TranslateGeneral",
         "FormatType": "text",
-        "SourceLanguage": cfg.get("aliyun_source_lang", "auto"),
+        "SourceLanguage": source_lang,
         "TargetLanguage": target_lang,
         "SourceText": text,
         "Scene": "general",
@@ -378,13 +393,14 @@ def _aliyun_translate_one(text, target_lang, cfg):
 
 def translate_segments(segs, target_lang, status=None):
     """
-    翻译接口：阿里云机器翻译为主通道（与 ECS 同账号、直连稳定），
-    Google 免费接口作降级兜底，全部失败保留原文。
+    翻译接口：阿里云机器翻译为主通道（密钥来自 GitHub Secrets → 部署写入 .env），
+    未配置或调用失败时降级 Google，再失败保留原文。
     """
     texts = [s["text"] for s in segs]
     cfg = _load_config()
-    # 1) 阿里云主通道
-    if cfg.get("aliyun_access_key_id") and cfg.get("aliyun_access_key_secret"):
+    ak, sk, _, _ = _aliyun_credentials(cfg)
+    # 1) 阿里云主通道（GitHub Secrets / 环境变量 / config.json 任一有密钥即启用）
+    if ak and sk:
         try:
             out = []
             for i, t in enumerate(texts):
@@ -407,7 +423,7 @@ def translate_segments(segs, target_lang, status=None):
             return [_dedupe_text(t) for t in out]
         except Exception:
             pass
-    # 2) Google 降级兜底
+    # 2) Google 降级兜底（未配置 GitHub Secrets / 阿里云失败时）
     try:
         from deep_translator import GoogleTranslator
         tr = GoogleTranslator(source="auto", target=target_lang)
