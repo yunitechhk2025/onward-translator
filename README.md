@@ -54,7 +54,9 @@ nano config.json   # 填腾讯云密钥 + admin_password
 docker compose up -d --build
 ```
 
-首次启动会自动下载 Whisper 模型（约 460MB）到 `./models`，之后复用。访问：`http://服务器IP:8000`
+首次启动会自动下载 Whisper 模型（约 460MB）到 `./models`，之后复用。访问：`http://服务器IP:8010`
+
+> 与同机富润康客服（8000）错开，本服务默认映射 **8010**。
 
 ### C. GitHub Secrets（自动部署）
 
