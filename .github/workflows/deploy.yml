@@ -21,7 +21,16 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
+            if [ ! -d ~/onward-translator/.git ]; then
+              git clone https://github.com/yunitechhk2025/onward-translator.git ~/onward-translator
+            fi
             cd ~/onward-translator
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
+            if [ ! -f config.json ]; then
+              cp config.example.json config.json
+              echo "WARN: config.json 使用示例模板，请尽快填入腾讯云密钥与 admin_password"
+            fi
+            mkdir -p models jobs
             docker compose up -d --build
             docker compose ps
