@@ -191,7 +191,7 @@ def _bad_mt(t, src):
 
 
 def _dedupe_text(t):
-    """腾讯接口偶发把同一句重复输出 2-4 次，按句去重（否则配音超长溢出、字幕双重）"""
+    """机翻偶发把同一句重复输出 2-4 次，按句去重（否则配音超长溢出、字幕双重）"""
     parts = [p.strip() for p in re.split(r'(?<=[.!?。！？])\s+', t) if p.strip()]
     if len(parts) <= 1:
         return t
@@ -326,77 +326,87 @@ def _usage_add(videos=0, chars=0):
         pass  # 用量统计绝不影响主流程
 
 
-def _tencent_translate_one(text, target_lang, cfg):
-    """腾讯云机器翻译 TextTranslate（TC3-HMAC-SHA256 签名，纯标准库实现）"""
-    import hashlib, hmac, requests
-    sid = cfg.get("tencent_secret_id")
-    skey = cfg.get("tencent_secret_key")
-    if not sid or not skey:
-        raise IOError("未配置腾讯云密钥")
-    host = "tmt.tencentcloudapi.com"
-    service, version = "tmt", "2018-03-21"
-    body = json.dumps({"SourceText": text, "Source": "auto",
-                       "Target": target_lang, "ProjectId": 0},
-                      ensure_ascii=False).encode("utf-8")
-    ts = int(time.time())
-    date = time.strftime("%Y-%m-%d", time.gmtime(ts))
+def _aliyun_translate_one(text, target_lang, cfg):
+    """阿里云机器翻译 TranslateGeneral（POP RPC HMAC-SHA1，纯标准库 + requests）"""
+    import base64, hashlib, hmac, uuid
+    from urllib.parse import quote_plus
+    import requests
 
-    hashed_payload = hashlib.sha256(body).hexdigest()
-    canonical = ("POST\n/\n\n"
-                 f"content-type:application/json; charset=utf-8\nhost:{host}\n\n"
-                 f"content-type;host\n{hashed_payload}")
-    string_to_sign = (f"TC3-HMAC-SHA256\n{ts}\n{date}/{service}/tc3_request\n"
-                      f"{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}")
+    ak = cfg.get("aliyun_access_key_id")
+    sk = cfg.get("aliyun_access_key_secret")
+    if not ak or not sk:
+        raise IOError("未配置阿里云 AccessKey")
 
-    def _hmac(key, msg):
-        return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
+    endpoint = cfg.get("aliyun_mt_endpoint", "mt.aliyuncs.com")
 
-    signing = _hmac(_hmac(_hmac(("TC3" + skey).encode("utf-8"), date), service), "tc3_request")
-    signature = hmac.new(signing, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
+    def percent_encode(s):
+        # 阿里云 POP 签名要求：空格为 %20，且 ~ 不编码
+        return quote_plus(str(s), safe="~").replace("+", "%20").replace("*", "%2A").replace("%7E", "~")
 
-    headers = {
-        "Authorization": (f"TC3-HMAC-SHA256 Credential={sid}/{date}/{service}/tc3_request, "
-                          f"SignedHeaders=content-type;host, Signature={signature}"),
-        "Content-Type": "application/json; charset=utf-8",
-        "Host": host,
-        "X-TC-Action": "TextTranslate",
-        "X-TC-Version": version,
-        "X-TC-Region": cfg.get("tencent_region", "ap-guangzhou"),
-        "X-TC-Timestamp": str(ts),
+    params = {
+        "Format": "JSON",
+        "Version": "2018-10-12",
+        "AccessKeyId": ak,
+        "SignatureMethod": "HMAC-SHA1",
+        "Timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "SignatureVersion": "1.0",
+        "SignatureNonce": str(uuid.uuid4()),
+        "Action": "TranslateGeneral",
+        "FormatType": "text",
+        "SourceLanguage": cfg.get("aliyun_source_lang", "auto"),
+        "TargetLanguage": target_lang,
+        "SourceText": text,
+        "Scene": "general",
     }
-    r = requests.post(f"https://{host}", data=body, headers=headers, timeout=15)
-    d = r.json().get("Response", {})
-    if "Error" in d:
-        raise IOError(f"{d['Error'].get('Code')}:{d['Error'].get('Message', '')[:80]}")
-    return d.get("TargetText") or ""
+    canonical = "&".join(
+        f"{percent_encode(k)}={percent_encode(params[k])}" for k in sorted(params)
+    )
+    string_to_sign = f"POST&{percent_encode('/')}&{percent_encode(canonical)}"
+    signature = base64.b64encode(
+        hmac.new((sk + "&").encode("utf-8"), string_to_sign.encode("utf-8"), hashlib.sha1).digest()
+    ).decode("utf-8")
+    params["Signature"] = signature
+
+    r = requests.post(f"https://{endpoint}/", data=params, timeout=15)
+    d = r.json() if r.content else {}
+    code = str(d.get("Code", ""))
+    if code and code not in ("200", "OK"):
+        raise IOError(f"{code}:{str(d.get('Message', ''))[:80]}")
+    data = d.get("Data") or {}
+    return (data.get("Translated") or data.get("TranslatedText") or "").strip()
 
 
 def translate_segments(segs, target_lang, status=None):
     """
-    翻译接口：腾讯云机器翻译为主通道（稳定、直连、每月500万字符免费），
+    翻译接口：阿里云机器翻译为主通道（与 ECS 同账号、直连稳定），
     Google 免费接口作降级兜底，全部失败保留原文。
     """
     texts = [s["text"] for s in segs]
-    # 1) 腾讯云主通道
-    try:
-        cfg = _load_config()
-        out = []
-        for t in texts:
-            got = None
-            for a in range(2):  # 每段一次重试
-                try:
-                    got = _tencent_translate_one(t, target_lang, cfg)
-                    if not _bad_mt(got, t):
-                        break
-                    got = None
-                except Exception:
-                    got = None
-            out.append(got or t)
-        if status is not None:
-            status["machine_translated"] = True
-        return [_dedupe_text(t) for t in out]
-    except Exception:
-        pass
+    cfg = _load_config()
+    # 1) 阿里云主通道
+    if cfg.get("aliyun_access_key_id") and cfg.get("aliyun_access_key_secret"):
+        try:
+            out = []
+            for i, t in enumerate(texts):
+                got = None
+                last_err = None
+                for _ in range(2):  # 每段一次重试
+                    try:
+                        got = _aliyun_translate_one(t, target_lang, cfg)
+                        if not _bad_mt(got, t):
+                            break
+                        got = None
+                    except Exception as e:
+                        last_err = e
+                        got = None
+                if i == 0 and got is None and last_err is not None:
+                    raise last_err  # 首段失败 → 整通道放弃，走 Google
+                out.append(got or t)
+            if status is not None:
+                status["machine_translated"] = True
+            return [_dedupe_text(t) for t in out]
+        except Exception:
+            pass
     # 2) Google 降级兜底
     try:
         from deep_translator import GoogleTranslator
@@ -407,7 +417,7 @@ def translate_segments(segs, target_lang, status=None):
         out = [probe]
         for t in texts[1:]:
             got = None
-            for a in range(2):  # 每段一次重试，缓解间歇性失败
+            for _ in range(2):  # 每段一次重试，缓解间歇性失败
                 try:
                     got = tr.translate(t)
                     if not _bad_mt(got, t):

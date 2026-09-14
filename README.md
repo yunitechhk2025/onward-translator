@@ -50,7 +50,7 @@ cd ~
 git clone https://github.com/<org>/<repo>.git onward-translator
 cd onward-translator
 cp config.example.json config.json
-nano config.json   # 填腾讯云密钥 + admin_password
+nano config.json   # 填阿里云 AccessKey + admin_password
 docker compose up -d --build
 ```
 
@@ -107,18 +107,24 @@ python app.py
 
 ## 翻譯質量提升（可選）
 
-沙箱演示中翻譯走了降級通道（Google 免費接口被牆）。正式提供服務建議接入：
+正式提供服務建議接入雲廠商機器翻譯（本倉庫已接**阿里雲**）。
 
-- **DeepL API Free**（每月 50 萬字免費，質量最好）
-- 騰訊雲 / 百度翻譯 API（國內直連、有免費額度）
+### 已接入阿里雲機器翻譯（主通道）
 
-在 `app.py` 的 `translate_segments()` 裡換成你的 API key 即可，接口已預留。
+1. 開通 [機器翻譯](https://www.aliyun.com/product/ai/alimt)
+2. 在 [AccessKey 管理](https://ram.console.aliyun.com/manage/ak) 創建 AccessKey
+3. 在項目根目錄 `config.json` 填入：
 
-### 已接入騰訊雲機器翻譯（主通道）
+```json
+{
+  "aliyun_access_key_id": "你的AccessKeyId",
+  "aliyun_access_key_secret": "你的AccessKeySecret",
+  "admin_password": "管理后台密码"
+}
+```
 
-- 在項目根目錄的 `config.json` 填入 `tencent_secret_id` / `tencent_secret_key`（每月 500 萬字符免費）
-- **密鑰只在 `config.json`，不寫入源碼；打包分享源碼時務必刪除該文件**
-- 騰訊雲不可用時自動降級到 Google，再失敗保留原文（粵語聲兜底）
+- **密鑰只在 `config.json`，不寫入源碼；不要提交到 Git**
+- 阿里雲不可用時自動降級到 Google，再失敗保留原文（粵語聲兜底）
 
 ## 已知限制
 

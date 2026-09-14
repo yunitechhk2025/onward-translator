@@ -29,7 +29,7 @@ jobs:
             git reset --hard origin/main
             if [ ! -f config.json ]; then
               cp config.example.json config.json
-              echo "WARN: config.json 使用示例模板，请尽快填入腾讯云密钥与 admin_password"
+              echo "WARN: config.json 使用示例模板，请尽快填入阿里云 AccessKey 与 admin_password"
             fi
             mkdir -p models jobs
             docker compose up -d --build
