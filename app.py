@@ -571,8 +571,18 @@ def burn_subtitles(job, segs, translated):
 # ===================== 路由 =====================
 @app.get("/health")
 def health():
-    """供 Nginx / 部署健康检查使用"""
-    return {"status": "ok", "service": "onward-translator"}
+    """供 Nginx / 部署健康检查使用；顺带暴露依赖就绪状态，便于远程排障"""
+    model_bin = Path(MODEL_PATH, "model.bin")
+    return {
+        "status": "ok",
+        "service": "onward-translator",
+        "model_path": MODEL_PATH,
+        "model_ready": model_bin.exists(),
+        "model_size_mb": round(model_bin.stat().st_size / 1024**2, 1) if model_bin.exists() else 0,
+        "ffmpeg": shutil.which("ffmpeg") is not None,
+        "yt_dlp": shutil.which("yt-dlp") is not None,
+        "translator": "aliyun" if all(_aliyun_credentials()[:2]) else "google-fallback",
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
